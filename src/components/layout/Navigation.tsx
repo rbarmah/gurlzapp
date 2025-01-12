@@ -97,7 +97,7 @@ export default function Navigation() {
             <NavItem onClick={() => handleNavigation('/health')} icon={Calendar} label="Reproductive" isActive={isActive('/health')} />
             <NavItem onClick={() => handleNavigation('/physical')} icon={Activity} label="Physical" isActive={isActive('/physical')} />
             <NavItem onClick={() => handleNavigation('/mental')} icon={Brain} label="Mental" isActive={isActive('/mental')} />
-            <NavItem onClick={() => handleNavigation('/fashion')} icon={Shirt} label="Fashion" isActive={isActive('/fashion')} />
+            <NavItem onClick={() => handleNavigation('/fashion')} icon={Shirt} label="Gurlture!" isActive={isActive('/fashion')} />
             <NavItem onClick={() => handleNavigation('/marketplace')} icon={ShoppingBag} label="Marketplace" isActive={isActive('/marketplace')} />
           </div>
 

@@ -74,8 +74,8 @@ export default function ChatRoom() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      {/* Parent Message */}
-      <div className="bg-primary rounded-xl overflow-hidden mb-6">
+      {/* Parent Message - Using dynamic color */}
+      <div className={`${parentMessage.color} rounded-xl overflow-hidden mb-6`}>
         <div className="p-6">
           <Button 
             variant="secondary" 

@@ -13,17 +13,17 @@ import UploadModal from '../components/fashion/UploadModal';
 export default function Fashion() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { 
-    posts, 
+  const {
+    posts,
     savedPosts,
-    searchQuery, 
-    addPost, 
-    likePost, 
+    searchQuery,
+    addPost,
+    likePost,
     addComment,
     toggleSavePost,
-    setSearchQuery 
+    setSearchQuery
   } = useFashionStore();
-  
+
   const { logActivity } = useProfileActivity();
   const [showUpload, setShowUpload] = useState(false);
 
@@ -64,8 +64,8 @@ export default function Fashion() {
     <div className="space-y-8">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-8 rounded-3xl">
-        <h1 className="text-3xl font-bold mb-4">Fashion Inspirations</h1>
-        <p className="text-secondary-light/90">Share and discover beautiful fashion ideas</p>
+        <h1 className="text-3xl font-bold mb-4">Gurlture!</h1>
+        <p className="text-secondary-light/90">Share your beautiful pictures with the community!</p>
       </div>
 
       {/* Search and Actions */}
@@ -81,7 +81,7 @@ export default function Fashion() {
             <Upload className="mr-2" size={20} />
             Share Inspiration
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={() => navigate('/saved-ideas')}
           >

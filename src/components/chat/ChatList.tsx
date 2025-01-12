@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquarePlus, Loader } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useChatStore } from '../../store/chatStore';
+import { useChat } from '../../hooks/useChat';
 import ChatFilters from './ChatFilters';
 import ChatCard from './ChatCard';
 import NewChatButton from './NewChatButton';
@@ -21,32 +22,35 @@ const COLORS = [
 const getRandomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 
 export default function ChatList() {
+  console.log('Chatlist rendered');
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const { messages, loading: isLoading, error } = useChat();
+  console.log("useChat hook result:", { messages, isLoading, error }); 
+
   const {
-    messages,
     searchQuery,
     sortBy,
     addMessage,
     deleteMessage,
     setSearchQuery,
     setSortBy,
-    isLoading,
-    error,
     likeMessage,
   } = useChatStore();
 
   const isUserOver18 = useMemo(() => user?.ageGroup !== '12-18', [user]);
+  
 
   // Filter and sort messages
   const filteredMessages = useMemo(() => {
-    return messages
+    return (messages || [])
       .filter((message) => {
         const matchesSearch =
           message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (!message.isAnonymous &&
             message.author.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
+        // Show message only if it's suitable for minors OR if the user is over 18
         const isAgeAppropriate = message.isSuitableForMinors || isUserOver18;
 
         return matchesSearch && isAgeAppropriate;
@@ -60,6 +64,17 @@ export default function ChatList() {
         return dateA - dateB;
       });
   }, [messages, searchQuery, sortBy, isUserOver18]);
+
+  console.log("Database check:", { 
+    user_age_group: user?.age_group,
+    isUserOver18,
+    messages: messages?.map(msg => ({
+        content: msg.content,
+        is_suitable_for_minors: msg.isSuitableForMinors,
+        age_appropriate: msg.isSuitableForMinors || isUserOver18,
+        raw_data: msg
+    }))
+  });
 
   // Handle adding a new chat
   const handleNewChat = (content: string, isAnonymous: boolean, isSuitableForMinors: boolean) => {
@@ -76,7 +91,7 @@ export default function ChatList() {
       isAnonymous,
       isSuitableForMinors,
       created_at: new Date().toISOString(),
-      timestamp: new Date().toISOString(), // Keep for backward compatibility
+      timestamp: new Date().toISOString(),
       likes: 0,
       likedBy: [],
       comments: [],
@@ -143,8 +158,14 @@ export default function ChatList() {
               >
                 <ChatCard
                   {...message}
+                  metrics={{
+                    likes: message.likes,
+                    likedBy: message.likedBy,
+                    isLiked: message.isLiked,
+                    repliesCount: message.comments?.length || 0,
+                    viewCount: message.viewCount
+                  }}
                   timestamp={message.created_at || message.timestamp}
-                  repliesCount={message.comments?.length || 0}
                   onClick={() => navigate(`/chat/${message.id}`)}
                   onLike={() => handleLike(message.id)}
                   onDelete={

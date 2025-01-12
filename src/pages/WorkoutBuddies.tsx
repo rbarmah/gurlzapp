@@ -32,7 +32,7 @@ export default function WorkoutBuddies() {
 
   const filteredBuddies = dummyBuddies.filter(buddy =>
     buddy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    buddy.interests.some(interest => 
+    buddy.interests.some(interest =>
       interest.toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
@@ -42,8 +42,8 @@ export default function WorkoutBuddies() {
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-8 rounded-3xl">
         <div className="flex items-center space-x-4 mb-4">
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             size="sm"
             onClick={() => navigate('/physical')}
           >
@@ -73,7 +73,7 @@ export default function WorkoutBuddies() {
         {/* Buddy List */}
         <div className="space-y-4">
           {filteredBuddies.map((buddy) => (
-            <div 
+            <div
               key={buddy.id}
               className="flex items-center space-x-4 p-4 bg-secondary/5 rounded-xl hover:bg-secondary/10 transition-colors"
             >

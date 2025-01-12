@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navigation from './Navigation';
 import { useAuthStore } from '../../store/authStore';
@@ -14,14 +14,19 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showCart, setShowCart] = useState(false);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isAuthenticated, user } = useAuthStore();
   const isAuthPage = ['/login', '/signup', '/'].includes(location.pathname);
 
-  React.useEffect(() => {
-    if (!isAuthenticated && !isAuthPage) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, isAuthPage, navigate]);
+  // Modified auth check to prevent redirect loops
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!isAuthenticated && !isAuthPage) {
+        navigate('/login', { replace: true });
+      }
+    };
+
+    checkAuth();
+  }, [location.pathname]); // Only check on path change
 
   const handleCheckout = () => {
     setShowCart(false);

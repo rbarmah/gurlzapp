@@ -1,23 +1,26 @@
+// AuthProvider.tsx
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { auth } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
-  const { login } = useAuthStore();
+  const { login, fetchUserFromSupabase } = useAuthStore();
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          const { data } = await auth.getProfile();
+      try {
+        // Try to get token first
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          const { data } = await auth.getProfile();  // Using your original auth API
           login(data);
-        } catch (error) {
-          console.warn('Auth check warning:', error);
         }
+      } catch (error) {
+        console.warn('Auth check warning:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();

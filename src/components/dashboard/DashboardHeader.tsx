@@ -17,7 +17,7 @@ export default function DashboardHeader() {
         </div>
         <div className="absolute inset-0 opacity-10 mix-blend-overlay">
           <img
-            src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200"
+            src="https://img.freepik.com/free-photo/medium-shot-african-women-posing-together_23-2151463158.jpg"
             alt="Happy Girls"
             className="w-full h-full object-cover"
           />

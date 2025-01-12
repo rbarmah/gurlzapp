@@ -7,9 +7,7 @@ export interface User {
   gender: 'female' | 'male';
   country: string;
   phoneNumber?: string;
-  dateJoined: Date;
   ageGroup: AgeGroup;
-  pendingVerification?: boolean;
   profileImage?: string;
   bio?: string;
 }

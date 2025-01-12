@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Users, Utensils, Activity, Target, Calendar } from 'lucide-react';
+import { Dumbbell, Users, Utensils, Activity, Target, Calendar, Book, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import FeatureCard from '../../components/physical/FeatureCard';
 
@@ -22,16 +22,10 @@ export default function PhysicalDashboard() {
       color: "bg-violet-500",
       path: "/physical/workout-buddies"
     },
+
     {
-      title: "Diet Quiz",
-      description: "Get personalized meal suggestions",
-      icon: Utensils,
-      color: "bg-emerald-500",
-      path: "/physical/diet-quiz"
-    },
-    {
-      title: "Exercise Tracking",
-      description: "Log and monitor your workouts",
+      title: "Daily Activity Tracking",
+      description: "Log and monitor your daily physical health activities",
       icon: Dumbbell,
       color: "bg-amber-500",
       path: "/physical/exercise"
@@ -44,11 +38,11 @@ export default function PhysicalDashboard() {
       path: "/physical/goals"
     },
     {
-      title: "Schedule Workouts",
-      description: "Plan your workout routine",
-      icon: Calendar,
+      title: "Physical Health Resources",
+      description: "Learn about physical health topics",
+      icon: BookOpen,
       color: "bg-primary",
-      path: "/physical/schedule"
+      path: "/physical/resources"
     }
   ];
 

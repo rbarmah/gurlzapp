@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, ShoppingBag, Bookmark, Image } from 'lucide-react';
 import { UserActivity } from '../../types/profile';
@@ -13,14 +13,18 @@ const activityIcons = {
   like: { icon: Heart, color: 'text-red-500 bg-red-50' },
   chat: { icon: MessageCircle, color: 'text-green-500 bg-green-50' },
   purchase: { icon: ShoppingBag, color: 'text-purple-500 bg-purple-50' },
-  save: { icon: Bookmark, color: 'text-yellow-500 bg-yellow-50' }
+  save: { icon: Bookmark, color: 'text-yellow-500 bg-yellow-50' },
 };
 
 export default function ActivityTimeline({ activities }: ActivityTimelineProps) {
-  if (activities.length === 0) {
+  useEffect(() => {
+    console.log('ActivityTimeline received activities:', activities);
+  }, [activities]);
+
+  if (!Array.isArray(activities) || activities.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No activity yet
+        {Array.isArray(activities) ? 'No activity yet' : 'Loading activities...'}
       </div>
     );
   }
@@ -28,8 +32,23 @@ export default function ActivityTimeline({ activities }: ActivityTimelineProps) 
   return (
     <div className="space-y-4">
       {activities.map((activity) => {
-        const { icon: Icon, color } = activityIcons[activity.type as keyof typeof activityIcons];
-        
+        if (!activity || !activity.type || !activityIcons[activity.type]) {
+          console.warn('Skipping invalid activity:', activity);
+          return null;
+        }
+
+        const { icon: Icon, color } = activityIcons[activity.type];
+
+        // Ensure we have a valid timestamp
+        let timestamp: Date;
+        try {
+          timestamp = activity.timestamp instanceof Date ? activity.timestamp : new Date(activity.timestamp);
+          if (isNaN(timestamp.getTime())) throw new Error('Invalid timestamp');
+        } catch (error) {
+          console.error('Invalid timestamp for activity:', activity);
+          timestamp = new Date(); // Fallback to current time
+        }
+
         return (
           <motion.div
             key={activity.id}
@@ -41,10 +60,8 @@ export default function ActivityTimeline({ activities }: ActivityTimelineProps) 
               <Icon size={20} />
             </div>
             <div className="flex-1">
-              <p className="text-gray-900">{activity.content}</p>
-              <p className="text-sm text-gray-500">
-                {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
-              </p>
+              <p className="text-gray-900">{activity.content || 'No content provided'}</p>
+              <p className="text-sm text-gray-500">{formatDistanceToNow(timestamp, { addSuffix: true })}</p>
             </div>
           </motion.div>
         );

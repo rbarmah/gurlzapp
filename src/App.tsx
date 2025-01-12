@@ -12,6 +12,7 @@ import Mental from './pages/Mental';
 import Fashion from './pages/Fashion';
 import Chat from './pages/Chat';
 import Marketplace from './pages/Marketplace';
+import SavedIdeas from './pages/SavedIdeas';
 
 function App() {
   return (
@@ -19,18 +20,37 @@ function App() {
       <AuthProvider>
         <Layout>
           <Routes>
+            {/* Authentication Routes */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginForm />} />
             <Route path="/signup" element={<SignupForm />} />
+
+            {/* Main Application Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
+            
+            {/* Profile Routes */}
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
+            
+            {/* Health & Wellness Routes */}
             <Route path="/health" element={<Health />} />
             <Route path="/physical/*" element={<Physical />} />
             <Route path="/mental/*" element={<Mental />} />
+            
+            {/* Feature Routes */}
             <Route path="/fashion" element={<Fashion />} />
+            
+            {/* Chat Routes */}
             <Route path="/chat/*" element={<Chat />} />
+            
+            {/* Marketplace Routes */}
             <Route path="/marketplace/*" element={<Marketplace />} />
+            
+            {/* Other Routes */}
+            <Route path="/saved-ideas" element={<SavedIdeas />} />
+            
+            {/* Catch all undefined routes */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Layout>
       </AuthProvider>

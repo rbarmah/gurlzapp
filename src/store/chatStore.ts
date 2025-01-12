@@ -10,6 +10,7 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
   fetchMessages: () => Promise<void>;
+  fetchUserMessages: (userId: string) => Promise<void>;
   addMessage: (message: Omit<ChatMessage, 'id'>) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   likeMessage: (messageId: string, userId: string) => Promise<void>;
@@ -32,7 +33,6 @@ export const useChatStore = create<ChatState>()(
       fetchMessages: async () => {
         set({ isLoading: true });
         try {
-          // Get parent messages with their view counts and comments
           const { data: messagesData, error: messagesError } = await supabase
             .from('chat_messages')
             .select(`
@@ -48,7 +48,6 @@ export const useChatStore = create<ChatState>()(
 
           if (messagesError) throw messagesError;
 
-          // Get comments for all messages
           const { data: allComments, error: commentsError } = await supabase
             .from('chat_messages')
             .select(`
@@ -63,7 +62,6 @@ export const useChatStore = create<ChatState>()(
 
           if (commentsError) throw commentsError;
 
-          // Group comments by parent message
           const commentsByParent = allComments.reduce((acc, comment) => {
             if (!acc[comment.parent_id]) {
               acc[comment.parent_id] = [];
@@ -77,15 +75,14 @@ export const useChatStore = create<ChatState>()(
                 avatar: comment.profiles.avatar_url
               },
               isAnonymous: comment.is_anonymous,
-              created_at: comment.created_at,
+              timestamp: comment.created_at,
               likes: comment.likes_count || 0,
-              likedBy: comment.liked_by || [],
-              isLiked: false
+              liked: false,
+              likedBy: comment.liked_by || []
             });
             return acc;
           }, {});
 
-          // Format messages with their comments and counts
           const formattedMessages = messagesData.map(message => ({
             id: message.id,
             content: message.content,
@@ -96,19 +93,101 @@ export const useChatStore = create<ChatState>()(
             },
             isAnonymous: message.is_anonymous,
             isSuitableForMinors: message.is_suitable_for_minors,
-            created_at: message.created_at,
+            timestamp: message.created_at,
             likes: message.likes_count || 0,
+            liked: false,
             likedBy: message.liked_by || [],
             comments: commentsByParent[message.id] || [],
-            repliesCount: (commentsByParent[message.id] || []).length,
             viewCount: message.view_count || 0,
-            color: 'bg-primary'
+            color: message.color || 'bg-primary'  // Using database color with fallback
           }));
 
           set({ messages: formattedMessages, error: null });
         } catch (error) {
           console.error('Error fetching messages:', error);
           set({ error: 'Failed to load messages' });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      fetchUserMessages: async (userId: string) => {
+        set({ isLoading: true });
+        try {
+          const { data: messagesData, error: messagesError } = await supabase
+            .from('chat_messages')
+            .select(`
+              *,
+              profiles:user_id (
+                id,
+                username,
+                avatar_url
+              )
+            `)
+            .eq('user_id', userId)
+            .is('parent_id', null)
+            .order('created_at', { ascending: false });
+
+          if (messagesError) throw messagesError;
+
+          const { data: allComments, error: commentsError } = await supabase
+            .from('chat_messages')
+            .select(`
+              *,
+              profiles:user_id (
+                id,
+                username,
+                avatar_url
+              )
+            `)
+            .in('parent_id', messagesData.map(m => m.id));
+
+          if (commentsError) throw commentsError;
+
+          const commentsByParent = allComments.reduce((acc, comment) => {
+            if (!acc[comment.parent_id]) {
+              acc[comment.parent_id] = [];
+            }
+            acc[comment.parent_id].push({
+              id: comment.id,
+              content: comment.content,
+              author: {
+                id: comment.profiles.id,
+                username: comment.profiles.username,
+                avatar: comment.profiles.avatar_url
+              },
+              isAnonymous: comment.is_anonymous,
+              timestamp: comment.created_at,
+              likes: comment.likes_count || 0,
+              liked: false,
+              likedBy: comment.liked_by || []
+            });
+            return acc;
+          }, {});
+
+          const formattedMessages = messagesData.map(message => ({
+            id: message.id,
+            content: message.content,
+            author: {
+              id: message.profiles.id,
+              username: message.profiles.username,
+              avatar: message.profiles.avatar_url
+            },
+            isAnonymous: message.is_anonymous,
+            isSuitableForMinors: message.is_suitable_for_minors,
+            timestamp: message.created_at,
+            likes: message.likes_count || 0,
+            liked: false,
+            likedBy: message.liked_by || [],
+            comments: commentsByParent[message.id] || [],
+            viewCount: message.view_count || 0,
+            color: message.color || 'bg-primary'  // Using database color with fallback
+          }));
+
+          set({ messages: formattedMessages, error: null });
+        } catch (error) {
+          console.error('Error fetching user messages:', error);
+          set({ error: 'Failed to load user messages' });
         } finally {
           set({ isLoading: false });
         }
@@ -126,6 +205,7 @@ export const useChatStore = create<ChatState>()(
               liked_by: [],
               parent_id: null,
               view_count: 0
+              // Note: color is auto-generated by Supabase function
             })
             .select(`
               *,
@@ -149,13 +229,13 @@ export const useChatStore = create<ChatState>()(
             },
             isAnonymous: data.is_anonymous,
             isSuitableForMinors: data.is_suitable_for_minors,
-            created_at: data.created_at,
+            timestamp: data.created_at,
             likes: 0,
+            liked: false,
             likedBy: [],
             comments: [],
-            repliesCount: 0,
             viewCount: 0,
-            color: message.color
+            color: data.color || 'bg-primary'  // Using database-generated color
           };
 
           set(state => ({
@@ -163,6 +243,24 @@ export const useChatStore = create<ChatState>()(
           }));
         } catch (error) {
           console.error('Error adding message:', error);
+          throw error;
+        }
+      },
+
+      deleteMessage: async (messageId) => {
+        try {
+          const { error } = await supabase
+            .from('chat_messages')
+            .delete()
+            .eq('id', messageId);
+
+          if (error) throw error;
+
+          set(state => ({
+            messages: state.messages.filter(msg => msg.id !== messageId)
+          }));
+        } catch (error) {
+          console.error('Error deleting message:', error);
           throw error;
         }
       },
@@ -184,7 +282,7 @@ export const useChatStore = create<ChatState>()(
                     ...msg,
                     likes: data.likes_count,
                     likedBy: data.liked_by,
-                    isLiked: data.liked_by.includes(userId)
+                    liked: data.liked_by.includes(userId)
                   }
                 : msg
             )
@@ -232,10 +330,10 @@ export const useChatStore = create<ChatState>()(
               avatar: data.profiles.avatar_url
             },
             isAnonymous: data.is_anonymous,
-            created_at: data.created_at,
+            timestamp: data.created_at,
             likes: 0,
-            likedBy: [],
-            isLiked: false
+            liked: false,
+            likedBy: []
           };
 
           set(state => ({
@@ -243,32 +341,13 @@ export const useChatStore = create<ChatState>()(
               msg.id === messageId
                 ? {
                     ...msg,
-                    comments: [...msg.comments, newComment],
-                    repliesCount: msg.repliesCount + 1
+                    comments: [...msg.comments, newComment]
                   }
                 : msg
             )
           }));
         } catch (error) {
           console.error('Error adding comment:', error);
-          throw error;
-        }
-      },
-
-      deleteMessage: async (messageId) => {
-        try {
-          const { error } = await supabase
-            .from('chat_messages')
-            .delete()
-            .eq('id', messageId);
-
-          if (error) throw error;
-
-          set(state => ({
-            messages: state.messages.filter(msg => msg.id !== messageId)
-          }));
-        } catch (error) {
-          console.error('Error deleting message:', error);
           throw error;
         }
       },

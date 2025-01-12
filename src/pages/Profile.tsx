@@ -1,17 +1,62 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
+import { supabase } from '../lib/supabase';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import ProfileTabs from '../components/profile/ProfileTabs';
 import ProfileContent from '../components/profile/ProfileContent';
 
 export default function Profile() {
   const { userId } = useParams();
-  const currentUser = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
+  const { user: currentUser, fetchUserFromSupabase } = useAuthStore();
   const [activeTab, setActiveTab] = useState('posts');
   const [bio, setBio] = useState('');
   const [profileImage, setProfileImage] = useState<string>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check and refresh auth state on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setIsLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate('/login', { replace: true });
+          return;
+        }
+
+        // If we have a session but no current user, fetch the user data
+        if (session && !currentUser) {
+          await fetchUserFromSupabase(session.user.id);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        navigate('/login', { replace: true });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [currentUser, fetchUserFromSupabase, navigate]);
+
+  // Setup real-time subscription for auth changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate('/login', { replace: true });
+      } else if (session && !currentUser) {
+        await fetchUserFromSupabase(session.user.id);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentUser, fetchUserFromSupabase, navigate]);
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const profileUserId = userId || currentUser?.id;
@@ -20,6 +65,14 @@ export default function Profile() {
     setBio(data.bio || '');
     setProfileImage(data.profileImage);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!currentUser || !profileUserId) {
     return (

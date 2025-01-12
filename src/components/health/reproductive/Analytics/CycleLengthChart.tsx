@@ -7,6 +7,11 @@ interface CycleLengthChartProps {
   cycles: CycleData[];
 }
 
+const getTime = (dateString: Date | undefined) => {
+  if(!dateString) return new Date().getTime()
+  return new Date(dateString).getTime()
+}
+
 export default function CycleLengthChart({ cycles }: CycleLengthChartProps) {
   const recentCycles = cycles.slice(-6); // Show last 6 cycles
 
@@ -15,7 +20,7 @@ export default function CycleLengthChart({ cycles }: CycleLengthChartProps) {
     datasets: [{
       label: 'Cycle Length',
       data: recentCycles.map(cycle => 
-        Math.round((cycle.endDate.getTime() - cycle.startDate.getTime()) / (1000 * 60 * 60 * 24))
+        Math.round((getTime(cycle.endDate) - getTime(cycle.startDate)) / (1000 * 60 * 60 * 24))
       ),
       borderColor: 'rgb(255, 99, 132)',
       backgroundColor: 'rgba(255, 99, 132, 0.1)',
