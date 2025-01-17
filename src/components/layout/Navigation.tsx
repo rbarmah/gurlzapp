@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Heart,
-  UserCircle2
+  UserCircle2,
+  Bell
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -62,10 +63,22 @@ export default function Navigation() {
       `}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-primary-light/20">
-            <div className="flex items-center space-x-3">
-              <Heart className="w-8 h-8 text-secondary-dark" />
-              <h1 className="text-2xl font-serif text-secondary-dark">Gurlz</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Heart className="w-8 h-8 text-secondary-dark" />
+                <h1 className="text-2xl font-serif text-secondary-dark">Gurlz</h1>
+              </div>
+
+              {/* Notification Icon */}
+              <button
+                onClick={() => handleNavigation('/notifications')}
+                className="relative text-secondary-dark hover:text-primary"
+                aria-label="View notifications"
+              >
+                <Bell className="w-6 h-6" />
+              </button>
             </div>
+
             {user && (
               <button 
                 onClick={() => handleNavigation('/profile')}

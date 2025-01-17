@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '../lib/supabase'; // Ensure you have Supabase client setup
+import { supabase } from '../lib/supabase';
 import { UserProfile, UserActivity, ChatHistoryItem } from '../types/profile';
 
 interface ProfileState {
@@ -74,34 +74,59 @@ export const useProfileStore = create<ProfileState>()(
       clearSearchHistory: () => set({ searchHistory: [] }),
 
       fetchChatHistory: async (userId) => {
-        try {
-          const { data, error } = await supabase
-            .from('chat_messages') // Replace with your table name
-            .select('*')
-            .eq('user_id', userId); // Replace with your column name for user ID
+        if (!userId) {
+          console.error('No userId provided to fetchChatHistory');
+          return;
+        }
 
-          if (error) {
-            console.error('Error fetching chat history:', error);
+        try {
+          console.log('Fetching chat history for user:', userId);
+          
+          // First, fetch all messages (both main messages and replies) for this user
+          const { data: allMessages, error: messagesError } = await supabase
+            .from('chat_messages')
+            .select(`
+              *,
+              likes:chat_likes(count)
+            `)
+            .or(`user_id.eq.${userId},recipient_id.eq.${userId}`)
+            .order('created_at', { ascending: false });
+
+          if (messagesError) {
+            console.error('Error fetching chat messages:', messagesError);
             return;
           }
 
           // Separate main messages and replies
-          const mainMessages = data.filter((message) => !message.reply_to); // Main messages have no reply_to
-          const replies = data.filter((message) => message.reply_to); // Replies have a reply_to
+          const mainMessages = allMessages.filter(msg => !msg.parent_id);
+          const replies = allMessages.filter(msg => msg.parent_id);
 
-          // Map main messages with their replies
-          const chatHistory = mainMessages.map((chat) => ({
-            ...chat,
-            timestamp: new Date(chat.timestamp), // Convert to Date object
-            replies: replies
-              .filter((reply) => reply.reply_to === chat.id) // Match replies to main message
-              .map((reply) => ({
-                ...reply,
-                timestamp: new Date(reply.timestamp),
-              })),
-          }));
+          // Transform the data to include replies with their parent messages
+          const chatHistory = mainMessages.map(message => {
+            const messageReplies = replies.filter(reply => reply.parent_id === message.id);
+            const likesCount = message.likes?.[0]?.count || 0;
 
-          set(() => ({ chatHistory })); // Update the state with fetched chat history
+            return {
+              id: message.id,
+              content: message.content,
+              userId: message.user_id,
+              recipientId: message.recipient_id,
+              isAnonymous: message.is_anonymous || false,
+              timestamp: message.created_at,
+              likes: likesCount,
+              comments: messageReplies.map(reply => ({
+                id: reply.id,
+                content: reply.content,
+                userId: reply.user_id,
+                timestamp: reply.created_at,
+                likes: reply.likes?.[0]?.count || 0
+              }))
+            };
+          });
+
+          console.log('Processed chat history:', chatHistory);
+          set({ chatHistory });
+
         } catch (err) {
           console.error('Unexpected error fetching chat history:', err);
         }
@@ -109,6 +134,10 @@ export const useProfileStore = create<ProfileState>()(
     }),
     {
       name: 'profile-storage',
+      partialize: (state) => ({
+        profiles: state.profiles,
+        searchHistory: state.searchHistory,
+      }),
     }
   )
 );

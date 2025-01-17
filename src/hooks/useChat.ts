@@ -10,6 +10,26 @@ export function useChat(chatId?: string) {
   const [error, setError] = useState<string | null>(null);
   const user = useAuthStore((state) => state.user);
 
+  // Define all functions before using them
+  const formatMessage = (message: any): ChatMessage => ({
+    id: message.id,
+    content: message.content,
+    author: {
+      id: message.profiles?.id,
+      username: message.profiles?.username,
+      avatar: message.profiles?.avatar_url,
+    },
+    isAnonymous: message.is_anonymous,
+    isSuitableForMinors: message.is_suitable_for_minors,
+    created_at: message.created_at,
+    likes: message.likes_count || 0,
+    likedBy: message.liked_by || [],
+    isLiked: user ? (message.liked_by || []).includes(user.id) : false,
+    comments: [],
+    viewCount: message.view_count || 0,
+    color: message.color || 'bg-primary',
+  });
+
   const updateViewCount = useCallback(async () => {
     if (!user || !chatId) return;
 
@@ -37,12 +57,12 @@ export function useChat(chatId?: string) {
       if (error) throw error;
 
       if (messageId === chatId && parentMessage) {
-        setParentMessage((prev) => ({
-          ...prev!,
+        setParentMessage((prev) => prev ? {
+          ...prev,
           likes: data.likes_count,
           likedBy: data.liked_by,
           isLiked: data.liked_by.includes(user.id),
-        }));
+        } : null);
       } else {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -66,146 +86,27 @@ export function useChat(chatId?: string) {
     }
   };
 
-  const fetchMessages = useCallback(async () => {
-    console.log('fetchMessages called with:', { user, chatId });
-    if (!user) {
-      console.log('No user, returning early');
-      return;
-    }
-    setLoading(true);
-    
+  const deleteMessage = async (messageId: string): Promise<boolean> => {
     try {
-      if (chatId) {
-        console.log('Fetching specific chat:', chatId);
-        const { data: parentData, error: parentError } = await supabase
-          .from('chat_messages')
-          .select(
-            `
-            *,
-            profiles:user_id (
-              id,
-              username,
-              avatar_url
-            )
-          `
-          )
-          .eq('id', chatId)
-          .single();
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', messageId);
 
-        console.log('Parent data query result:', { parentData, parentError });
+      if (error) throw error;
 
-        if (parentError) throw parentError;
-
-        const { data: commentsData, error: commentsError } = await supabase
-          .from('chat_messages')
-          .select(
-            `
-            *,
-            profiles:user_id (
-              id,
-              username,
-              avatar_url
-            )
-          `
-          )
-          .eq('parent_id', chatId)
-          .order('created_at', { ascending: false });
-
-        console.log('Comments data query result:', { commentsData, commentsError });
-
-        if (commentsError) throw commentsError;
-
-        if (parentData) {
-          setParentMessage({
-            id: parentData.id,
-            content: parentData.content,
-            author: {
-              id: parentData.profiles.id,
-              username: parentData.profiles.username,
-              avatar: parentData.profiles.avatar_url,
-            },
-            isAnonymous: parentData.is_anonymous,
-            isSuitableForMinors: parentData.is_suitable_for_minors,
-            created_at: parentData.created_at,
-            likes: parentData.likes_count || 0,
-            likedBy: parentData.liked_by || [],
-            comments: commentsData || [],
-            viewCount: parentData.view_count || 0,
-            color: parentData.color || 'bg-primary',
-            isLiked: (parentData.liked_by || []).includes(user.id),
-          });
-
-          updateViewCount();
-        }
-
-        setMessages((commentsData || []).map((comment) => ({
-          id: comment.id,
-          content: comment.content,
-          author: {
-            id: comment.profiles.id,
-            username: comment.profiles.username,
-            avatar: comment.profiles.avatar_url,
-          },
-          isAnonymous: comment.is_anonymous,
-          isSuitableForMinors: comment.is_suitable_for_minors,
-          created_at: comment.created_at,
-          likes: comment.likes_count || 0,
-          likedBy: comment.liked_by || [],
-          isLiked: (comment.liked_by || []).includes(user.id),
-          comments: [],
-          viewCount: comment.view_count || 0,
-          color: comment.color || 'bg-primary',
-        })));
-      } else {
-        console.log('Fetching all parent messages');
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              username,
-              avatar_url
-            )
-          `)
-          .is('parent_id', null)
-          .order('created_at', { ascending: false });
-
-        console.log('Parent messages query result:', { data, error });
-
-        if (error) throw error;
-
-        const formattedMessages = (data || []).map((message) => ({
-          id: message.id,
-          content: message.content,
-          author: {
-            id: message.profiles.id,
-            username: message.profiles.username,
-            avatar: message.profiles.avatar_url,
-          },
-          isAnonymous: message.is_anonymous,
-          isSuitableForMinors: message.is_suitable_for_minors,
-          created_at: message.created_at,
-          likes: message.likes_count || 0,
-          likedBy: message.liked_by || [],
-          isLiked: (message.liked_by || []).includes(user.id),
-          comments: [],
-          viewCount: message.view_count || 0,
-          color: message.color || 'bg-primary',
-        }));
-
-        console.log('Formatted messages:', formattedMessages);
-        setMessages(formattedMessages);
+      if (messageId === chatId) {
+        return true;
       }
 
-      setError(null);
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+      return true;
     } catch (err: any) {
-      console.error('Error fetching messages:', err);
-      setError(err?.message || 'Failed to load messages');
-    } finally {
-      setLoading(false);
+      console.error('Error deleting message:', err);
+      setError(err?.message || 'Failed to delete message');
+      return false;
     }
-  }, [user, chatId, updateViewCount]);
+  };
 
   const sendMessage = async (content: string, isAnonymous = false): Promise<boolean> => {
     if (!user) return false;
@@ -236,25 +137,7 @@ export function useChat(chatId?: string) {
 
       if (messageError) throw messageError;
 
-      const newMessage = {
-        id: message.id,
-        content: message.content,
-        author: {
-          id: message.profiles.id,
-          username: message.profiles.username,
-          avatar: message.profiles.avatar_url,
-        },
-        isAnonymous: message.is_anonymous,
-        isSuitableForMinors: message.is_suitable_for_minors,
-        created_at: message.created_at,
-        likes: 0,
-        likedBy: [],
-        isLiked: false,
-        comments: [],
-        viewCount: 0,
-        color: message.color || 'bg-primary',
-      };
-
+      const newMessage = formatMessage(message);
       setMessages((prev) => [newMessage, ...prev]);
       return true;
     } catch (err: any) {
@@ -266,61 +149,125 @@ export function useChat(chatId?: string) {
     }
   };
 
-  const deleteMessage = async (messageId: string): Promise<boolean> => {
+  const fetchMessages = useCallback(async () => {
+    console.log('fetchMessages called with:', { user, chatId });
+    if (!user) {
+      console.log('No user, returning early');
+      return;
+    }
+    setLoading(true);
+    
     try {
-      const { error } = await supabase.from('chat_messages').delete().eq('id', messageId);
+      if (chatId) {
+        // Fetch specific chat and its comments
+        const { data: parentData, error: parentError } = await supabase
+          .from('chat_messages')
+          .select(
+            `
+            *,
+            profiles:user_id (
+              id,
+              username,
+              avatar_url
+            )
+          `
+          )
+          .eq('id', chatId)
+          .single();
 
-      if (error) throw error;
+        if (parentError) throw parentError;
 
-      if (messageId === chatId) {
-        return true;
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('chat_messages')
+          .select(
+            `
+            *,
+            profiles:user_id (
+              id,
+              username,
+              avatar_url
+            )
+          `
+          )
+          .eq('parent_id', chatId)
+          .order('created_at', { ascending: false });
+
+        if (commentsError) throw commentsError;
+
+        if (parentData) {
+          setParentMessage(formatMessage(parentData));
+          updateViewCount();
+        }
+
+        setMessages((commentsData || []).map(formatMessage));
+      } else {
+        // Fetch main chat list
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select(
+            `
+            *,
+            profiles:user_id (
+              id,
+              username,
+              avatar_url
+            )
+          `
+          )
+          .is('parent_id', null)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setMessages((data || []).map(formatMessage));
       }
 
-      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-      return true;
+      setError(null);
     } catch (err: any) {
-      console.error('Error deleting message:', err);
-      setError(err?.message || 'Failed to delete message');
-      return false;
+      console.error('Error fetching messages:', err);
+      setError(err?.message || 'Failed to load messages');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user, chatId, updateViewCount]);
 
   // Set up real-time subscription
   useEffect(() => {
-    if (!chatId) return;
+    if (!user) return;
 
+    // Create a channel for all chat updates
     const channel = supabase
-      .channel(`chat:${chatId}`)
+      .channel('chat_updates')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'chat_messages',
-          filter: `id=eq.${chatId}`,
         },
         (payload) => {
-          if (payload.new) {
-            setParentMessage(prev => prev ? {
-              ...prev,
-              likes: payload.new.likes_count || 0,
-              likedBy: payload.new.liked_by || [],
-              viewCount: payload.new.view_count || 0,
-              isLiked: user ? (payload.new.liked_by || []).includes(user.id) : false,
-            } : null);
+          console.log('Received real-time update:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            if (chatId) {
+              if (payload.new.parent_id === chatId) {
+                const newMessage = formatMessage(payload.new);
+                setMessages((prev) => [newMessage, ...prev]);
+              }
+            } else if (!payload.new.parent_id) {
+              const newMessage = formatMessage(payload.new);
+              setMessages((prev) => [newMessage, ...prev]);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === payload.new.id
+                  ? formatMessage(payload.new)
+                  : msg
+              )
+            );
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `parent_id=eq.${chatId}`,
-        },
-        () => {
-          fetchMessages();
         }
       )
       .subscribe();
@@ -328,7 +275,7 @@ export function useChat(chatId?: string) {
     return () => {
       channel.unsubscribe();
     };
-  }, [chatId, fetchMessages, user]);
+  }, [user, chatId]);
 
   // Initial fetch
   useEffect(() => {

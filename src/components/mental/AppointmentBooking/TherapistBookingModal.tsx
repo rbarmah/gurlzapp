@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { supabase } from '../../../lib/supabase';
 import { X, Calendar, Clock, FileText } from 'lucide-react';
 import Button from '../../common/Button';
 import AppointmentCalendar from './AppointmentCalendar';
@@ -33,12 +34,31 @@ export default function TherapistBookingModal({
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [situation, setSituation] = useState('');
 
-  const handleSubmit = () => {
-    onBook({
-      date: selectedDate,
-      time: selectedTime,
-      situation
-    });
+  const handleSubmit = async () => {
+    try {
+      // Insert appointment into Supabase
+      const { error } = await supabase.from('appointments').insert({
+        therapist_id: therapist.id,
+        date: selectedDate.toISOString().split('T')[0],
+        time: selectedTime,
+        situation,
+        status: 'pending'
+      });
+
+      if (error) {
+        console.error('Error booking appointment:', error);
+        return;
+      }
+
+      // Call the onBook callback to notify parent component
+      onBook({
+        date: selectedDate,
+        time: selectedTime,
+        situation
+      });
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
   };
 
   return (

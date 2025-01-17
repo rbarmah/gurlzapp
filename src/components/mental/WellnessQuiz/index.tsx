@@ -11,61 +11,67 @@ import { quizQuestions } from './questions';
 export default function WellnessQuiz() {
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState(false);
 
-  const handleAnswer = (answer: string) => {
-    setAnswers(prev => ({
+  const handleAnswer = (answerIndex: number) => {
+    console.log('Answers:', answers); // Debugging: Log current answers
+    setAnswers((prev) => ({
       ...prev,
-      [currentQuestion]: answer
+      [currentQuestion]: answerIndex, // Store the selected answer's index
     }));
 
     if (currentQuestion < quizQuestions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
+      setCurrentQuestion((prev) => prev + 1);
     } else {
       setShowResults(true);
     }
   };
 
   const calculateScores = () => {
-    const categories = Array.from(
-      new Set(quizQuestions.map(q => q.category))
-    );
+    const categories = Array.from(new Set(quizQuestions.map((q) => q.category)));
 
-    return categories.map(category => {
-      const categoryQuestions = quizQuestions.filter(q => q.category === category);
-      const answeredQuestions = categoryQuestions.filter((_, index) => answers[index]);
-      const score = Math.round(
-        (answeredQuestions.length / categoryQuestions.length) * 100
-      );
+    return categories.map((category) => {
+      const categoryQuestions = quizQuestions.filter((q) => q.category === category);
+
+      const totalScore = categoryQuestions.reduce((sum, q, index) => {
+        const globalIndex = quizQuestions.indexOf(q);
+        const answerIndex = answers[globalIndex];
+        if (answerIndex !== undefined) {
+          return sum + (answerIndex + 1) * 25; // Convert answerIndex to score
+        }
+        return sum;
+      }, 0);
+
+      const maxScore = categoryQuestions.length * 100;
+      const percentageScore = Math.round((totalScore / maxScore) * 100);
 
       return {
         category,
-        score,
-        recommendations: getRecommendations(category, score)
+        score: percentageScore,
+        recommendations: getRecommendations(category, percentageScore),
       };
     });
   };
 
   const getRecommendations = (category: string, score: number) => {
-    // Simplified recommendations based on category and score
     if (score < 50) {
       return [
-        'Consider seeking professional support',
-        'Focus on building daily self-care habits',
-        'Start with small, achievable goals'
+        'Consider seeking professional support.',
+        'Focus on building daily self-care habits.',
+        'Start with small, achievable goals.',
       ];
     } else if (score < 75) {
       return [
-        'Continue your current practices',
-        'Try incorporating new wellness activities',
-        'Share your progress with others'
+        'Continue your current practices.',
+        'Try incorporating new wellness activities.',
+        'Share your progress with others.',
       ];
     } else {
       return [
-        'Maintain your excellent habits',
-        'Consider mentoring others',
-        'Challenge yourself with new goals'
+        'Maintain your excellent habits.',
+        'Consider mentoring others.',
+        'Challenge yourself with new goals.',
       ];
     }
   };
@@ -85,8 +91,8 @@ export default function WellnessQuiz() {
     <div className="space-y-8">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-8 rounded-3xl">
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           size="sm"
           onClick={() => navigate('/mental')}
           className="mb-4"
@@ -118,7 +124,7 @@ export default function WellnessQuiz() {
                 question={quizQuestions[currentQuestion].question}
                 options={quizQuestions[currentQuestion].options}
                 selectedAnswer={answers[currentQuestion] || null}
-                onAnswer={handleAnswer}
+                onAnswer={(answer) => handleAnswer(answer)}
                 category={quizQuestions[currentQuestion].category}
               />
             </motion.div>
@@ -129,6 +135,7 @@ export default function WellnessQuiz() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
+              {console.log('Scores:', calculateScores()) /* Debugging */}
               <QuizResults
                 scores={calculateScores()}
                 onRetake={handleRetake}

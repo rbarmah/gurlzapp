@@ -1,49 +1,41 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../../common/Button';
 import TherapistCard from './TherapistCard';
-
-// Demo therapists data
-const therapists = [
-  {
-    id: '1',
-    name: 'Dr. Sarah Johnson',
-    specialty: 'Anxiety & Depression',
-    rating: 4.9,
-    experience: '10 yrs',
-    location: 'Downtown',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200'
-  },
-  {
-    id: '2',
-    name: 'Dr. Michael Chen',
-    specialty: 'Stress Management',
-    rating: 4.8,
-    experience: '8 yrs',
-    location: 'Westside',
-    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=200'
-  },
-  {
-    id: '3',
-    name: 'Dr. Emily Parker',
-    specialty: 'Relationship Counseling',
-    rating: 4.9,
-    experience: '12 yrs',
-    location: 'Eastside',
-    image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=200'
-  }
-];
+import { supabase } from '../../../lib/supabase'; // Supabase client
 
 export default function AppointmentBooking() {
   const navigate = useNavigate();
+  const [therapists, setTherapists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchTherapists = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.from('therapists').select('*');
+        if (error) throw error;
+
+        setTherapists(data);
+      } catch (err) {
+        console.error('Error fetching therapists:', err);
+        setError('Failed to load therapists. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTherapists();
+  }, []);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-8 rounded-3xl">
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           size="sm"
           onClick={() => navigate('/mental')}
           className="mb-4"
@@ -55,7 +47,21 @@ export default function AppointmentBooking() {
         <p className="text-secondary-light/90">Connect with mental health professionals</p>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <p className="text-center text-gray-500">Loading therapists...</p>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <p className="text-center text-red-500">{error}</p>
+      )}
+
       {/* Therapist List */}
+      {!loading && !error && therapists.length === 0 && (
+        <p className="text-center text-gray-500">No therapists available at the moment.</p>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         {therapists.map((therapist) => (
           <TherapistCard

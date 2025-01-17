@@ -7,13 +7,20 @@ import Card from '../common/Card';
 export default function MentalDashboard() {
   const navigate = useNavigate();
 
+  // Function to handle video navigation
+  const handleVideoNavigation = () => {
+    // You can replace this with your actual video ID
+    const videoId = 'Us5w3RU2V3Q';
+    navigate(`/mental/video/${videoId}`);
+  };
+
   const features = [
     {
       title: "Daily Wellness Video",
       description: "Watch today's 5-minute mental wellness video",
       icon: Video,
       color: "bg-rose-500",
-      path: "/mental/video"
+      onClick: handleVideoNavigation // Use custom handler for video
     },
     {
       title: "Mood Tracker",
@@ -64,11 +71,11 @@ export default function MentalDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {features.map((feature, index) => (
           <motion.div
-            key={feature.path}
+            key={feature.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            onClick={() => navigate(feature.path)}
+            onClick={() => feature.onClick ? feature.onClick() : navigate(feature.path)}
             className="cursor-pointer"
           >
             <Card className="h-full hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
@@ -86,7 +93,7 @@ export default function MentalDashboard() {
         ))}
       </div>
 
-      {/* Quick Access Section */}
+      {/* Quick Access Section remains the same */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-xl font-semibold text-primary mb-4">Quick Access</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

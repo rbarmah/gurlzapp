@@ -1,14 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquarePlus, Loader } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { useChatStore } from '../../store/chatStore';
 import { useChat } from '../../hooks/useChat';
 import ChatFilters from './ChatFilters';
 import ChatCard from './ChatCard';
 import NewChatButton from './NewChatButton';
-import { generateUniqueId } from '../../utils/idGenerator';
 
 const COLORS = [
   'bg-primary',
@@ -22,24 +20,22 @@ const COLORS = [
 const getRandomColor = () => COLORS[Math.floor(Math.random() * COLORS.length)];
 
 export default function ChatList() {
-  console.log('Chatlist rendered');
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const { messages, loading: isLoading, error } = useChat();
-  console.log("useChat hook result:", { messages, isLoading, error }); 
-
   const {
-    searchQuery,
-    sortBy,
-    addMessage,
-    deleteMessage,
-    setSearchQuery,
-    setSortBy,
-    likeMessage,
-  } = useChatStore();
+    messages,
+    loading: isLoading,
+    error,
+    sendMessage: sendChatMessage,
+    deleteMessage: deleteChatMessage,
+    toggleLike
+  } = useChat();
+
+  // Local state for filters
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [sortBy, setSortBy] = React.useState<'recent' | 'popular'>('recent');
 
   const isUserOver18 = useMemo(() => user?.ageGroup !== '12-18', [user]);
-  
 
   // Filter and sort messages
   const filteredMessages = useMemo(() => {
@@ -50,7 +46,6 @@ export default function ChatList() {
           (!message.isAnonymous &&
             message.author.username.toLowerCase().includes(searchQuery.toLowerCase()));
 
-        // Show message only if it's suitable for minors OR if the user is over 18
         const isAgeAppropriate = message.isSuitableForMinors || isUserOver18;
 
         return matchesSearch && isAgeAppropriate;
@@ -59,71 +54,44 @@ export default function ChatList() {
         if (sortBy === 'popular') {
           return b.likes - a.likes;
         }
-        const dateA = new Date(b.created_at || b.timestamp).getTime();
-        const dateB = new Date(a.created_at || a.timestamp).getTime();
-        return dateA - dateB;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
   }, [messages, searchQuery, sortBy, isUserOver18]);
 
-  console.log("Database check:", { 
-    user_age_group: user?.age_group,
-    isUserOver18,
-    messages: messages?.map(msg => ({
-        content: msg.content,
-        is_suitable_for_minors: msg.isSuitableForMinors,
-        age_appropriate: msg.isSuitableForMinors || isUserOver18,
-        raw_data: msg
-    }))
-  });
-
   // Handle adding a new chat
-  const handleNewChat = (content: string, isAnonymous: boolean, isSuitableForMinors: boolean) => {
+  const handleNewChat = useCallback(async (
+    content: string,
+    isAnonymous: boolean,
+    isSuitableForMinors: boolean
+  ) => {
     if (!user) return;
-
-    const newMessage = {
-      id: generateUniqueId(),
-      content,
-      author: {
-        id: user.id,
-        username: user.username,
-        avatar: user.profileImage,
-      },
-      isAnonymous,
-      isSuitableForMinors,
-      created_at: new Date().toISOString(),
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      likedBy: [],
-      comments: [],
-      viewCount: 0,
-      color: getRandomColor(),
-    };
-
-    addMessage(newMessage);
-  };
+    await sendChatMessage(content, isAnonymous);
+  }, [user, sendChatMessage]);
 
   // Handle liking a message
-  const handleLike = (messageId: string) => {
+  const handleLike = useCallback(async (messageId: string) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    likeMessage(messageId, user.id);
-  };
+    await toggleLike(messageId);
+  }, [user, toggleLike, navigate]);
 
   // Handle deleting a message
-  const handleDelete = (messageId: string) => {
+  const handleDelete = useCallback(async (messageId: string) => {
     if (window.confirm('Are you sure you want to delete this message?')) {
-      deleteMessage(messageId);
+      await deleteChatMessage(messageId);
     }
-  };
+  }, [deleteChatMessage]);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-8 rounded-3xl">
         <h1 className="text-3xl font-bold mb-4">Girls' Chatroom</h1>
-        <p className="text-secondary-light/90">Explore stories, engage with others, and have fun!</p>
+        <p className="text-secondary-light/90">
+          Explore stories, engage with others, and have fun!
+        </p>
       </div>
 
       {/* Filters and New Chat */}
@@ -165,11 +133,13 @@ export default function ChatList() {
                     repliesCount: message.comments?.length || 0,
                     viewCount: message.viewCount
                   }}
-                  timestamp={message.created_at || message.timestamp}
+                  timestamp={message.created_at}
                   onClick={() => navigate(`/chat/${message.id}`)}
                   onLike={() => handleLike(message.id)}
                   onDelete={
-                    message.author.id === user?.id ? () => handleDelete(message.id) : undefined
+                    message.author.id === user?.id
+                      ? () => handleDelete(message.id)
+                      : undefined
                   }
                 />
               </motion.div>
@@ -185,7 +155,10 @@ export default function ChatList() {
               <MessageSquarePlus className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No messages found</p>
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="mt-2 text-primary hover:underline">
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="mt-2 text-primary hover:underline"
+                >
                   Clear search
                 </button>
               )}

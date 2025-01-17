@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, Clock, MapPin } from 'lucide-react';
 import TherapistBookingModal from './TherapistBookingModal';
-import { useAppointmentStore } from '../../../store/appointmentStore';
+import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../common/Button';
@@ -19,28 +19,61 @@ interface TherapistCardProps {
 
 export default function TherapistCard(props: TherapistCardProps) {
   const [showModal, setShowModal] = useState(false);
-  const addAppointment = useAppointmentStore(state => state.addAppointment);
+  const [availableSlots, setAvailableSlots] = useState<Record<string, string[]>>({});
   const user = useAuthStore(state => state.user);
   const navigate = useNavigate();
 
-  const handleBook = (data: { date: Date; time: string; situation: string }) => {
+  const fetchSlots = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('slots')
+        .select('date, times')
+        .eq('therapist_id', props.id);
+
+      if (error) {
+        console.error('Error fetching slots:', error);
+        return;
+      }
+
+      const slots = data.reduce((acc, slot) => {
+        acc[slot.date] = slot.times;
+        return acc;
+      }, {});
+
+      setAvailableSlots(slots);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
+  };
+
+  const handleBook = async (data: { date: Date; time: string; situation: string }) => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    addAppointment({
-      therapistId: props.id,
-      date: data.date.toISOString().split('T')[0],
-      time: data.time,
-      userId: user.id,
-      status: 'pending'
-    });
+    try {
+      const { error } = await supabase.from('appointments').insert({
+        therapist_id: props.id,
+        user_id: user.id,
+        date: data.date.toISOString().split('T')[0],
+        time: data.time,
+        situation: data.situation,
+        status: 'pending',
+      });
 
-    setShowModal(false);
-    navigate('/mental', { 
-      state: { message: 'Appointment booked successfully!' }
-    });
+      if (error) {
+        console.error('Error booking appointment:', error);
+        return;
+      }
+
+      setShowModal(false);
+      navigate('/mental', {
+        state: { message: 'Appointment booked successfully!' },
+      });
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
   };
 
   return (
@@ -74,7 +107,7 @@ export default function TherapistCard(props: TherapistCardProps) {
               </div>
             </div>
           </div>
-          <Button onClick={() => setShowModal(true)}>
+          <Button onClick={() => { fetchSlots(); setShowModal(true); }}>
             Book Session
           </Button>
         </div>
@@ -86,10 +119,7 @@ export default function TherapistCard(props: TherapistCardProps) {
             therapist={props}
             onClose={() => setShowModal(false)}
             onBook={handleBook}
-            availableSlots={{
-              [new Date().toISOString().split('T')[0]]: ['09:00', '10:00', '14:00'],
-              [new Date(Date.now() + 86400000).toISOString().split('T')[0]]: ['11:00', '15:00'],
-            }}
+            availableSlots={availableSlots}
           />
         )}
       </AnimatePresence>

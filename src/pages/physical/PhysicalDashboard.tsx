@@ -15,23 +15,9 @@ export default function PhysicalDashboard() {
       color: "bg-rose-500",
       path: "/physical/fitness-assessment"
     },
+   
     {
-      title: "Workout Buddies",
-      description: "Find workout partners near you",
-      icon: Users,
-      color: "bg-violet-500",
-      path: "/physical/workout-buddies"
-    },
-
-    {
-      title: "Daily Activity Tracking",
-      description: "Log and monitor your daily physical health activities",
-      icon: Dumbbell,
-      color: "bg-amber-500",
-      path: "/physical/exercise"
-    },
-    {
-      title: "Goal Setting",
+      title: "Goal Setting and Daily Activity Tracking",
       description: "Set and track fitness goals",
       icon: Target,
       color: "bg-blue-500",

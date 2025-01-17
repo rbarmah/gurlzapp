@@ -11,8 +11,9 @@ import Physical from './pages/Physical';
 import Mental from './pages/Mental';
 import Fashion from './pages/Fashion';
 import Chat from './pages/Chat';
-import Marketplace from './pages/Marketplace';
+import Marketplace from './pages/Marketplace'
 import SavedIdeas from './pages/SavedIdeas';
+import Notifications from './components/notifications';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
             
             {/* Other Routes */}
             <Route path="/saved-ideas" element={<SavedIdeas />} />
+            <Route path="/notifications" element={<Notifications />} />
             
             {/* Catch all undefined routes */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

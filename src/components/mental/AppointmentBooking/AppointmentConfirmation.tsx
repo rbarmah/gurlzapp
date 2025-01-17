@@ -7,8 +7,8 @@ interface AppointmentConfirmationProps {
   therapistName: string;
   date: Date;
   time: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onConfirm: () => void; // Function to handle confirmation
+  onCancel: () => void; // Function to handle cancellation
 }
 
 export default function AppointmentConfirmation({
@@ -16,8 +16,12 @@ export default function AppointmentConfirmation({
   date,
   time,
   onConfirm,
-  onCancel
+  onCancel,
 }: AppointmentConfirmationProps) {
+  if (!therapistName || !date || !time) {
+    return <p className="text-red-500">Invalid appointment details.</p>;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -53,10 +57,10 @@ export default function AppointmentConfirmation({
       </div>
 
       <div className="flex space-x-4">
-        <Button variant="outline" onClick={onCancel} className="flex-1">
+        <Button variant="outline" onClick={onCancel} className="flex-1" aria-label="Cancel Appointment">
           Cancel
         </Button>
-        <Button onClick={onConfirm} className="flex-1">
+        <Button onClick={onConfirm} className="flex-1" aria-label="Confirm Appointment">
           Confirm Booking
         </Button>
       </div>
